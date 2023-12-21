@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    #result {
+      margin-top: 10px;
+    }
+
+    #coordinatesTable {
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    #coordinatesTable th, #coordinatesTable td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    #copyButton {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>KML to Coordinates Converter</h1>
+  <p>Upload your KML file:</p>
+  <input type="file" id="fileInput" accept=".kml">
+  <button onclick="convertFile()">Convert</button>
+  <br>
+  <label for="suffix">Add text at the end:</label>
+  <input type="text" id="suffix" placeholder="Enter text">
+  <button onclick="copyToClipboard()" id="copyButton">Copy Coordinates</button>
+  <br>
+  <div id="result"></div>
+  <div id="coordinatesTableContainer"></div>
+
+  <script>
+
+    function convertFile() {
+      var fileInput = document.getElementById('fileInput');
+      var file = fileInput.files[0];
+
+      if (file) {
+        var reader = new FileReader();
+
+        reader.onload = function (e) {
+          var kmlInput = e.target.result;
+          convertCoordinates(kmlInput);
+        };
+
+        reader.readAsText(file);
+      } else {
+        document.getElementById('result').innerText = "Please select a KML file.";
+      }
+    }
+
+    function convertCoordinates(kmlInput) {
+      var regex = /-?\d+\.\d+,-?\d+\.\d+/g;
+      var matches = kmlInput.match(regex);
+      var suffix = document.getElementById('suffix').value.trim();
+
+      if (matches) {
+        var convertedCoordinates = [];
+        for (var i = 0; i < matches.length; i += 2) {
+          var coordinate1 = convertKMLtoYourFormat(matches[i]);
+          var coordinate2 = (i + 1 < matches.length) ? convertKMLtoYourFormat(matches[i + 1]) : "";
+          var line = "N" + coordinate1.latitude + " E" + coordinate1.longitude +
+                     " N" + coordinate2.latitude + " E" + coordinate2.longitude;
+          if (suffix) {
+            line += " " + suffix;
+          }
+          convertedCoordinates.push(line);
+        }
+
+        var resultElement = document.getElementById('result');
+        resultElement.innerText = convertedCoordinates.join('\n');
+
+        var coordinatesTable = document.getElementById('coordinatesTable');
+        updateTableContent(coordinatesTable, convertedCoordinates);
+      } else {
+        var resultElement = document.getElementById('result');
+        resultElement.innerText = "No coordinates found in the input.";
+      }
+    }
+
+    function updateTableContent(table, coordinates) {
+      var body = table.tBodies[0];
+      body.innerHTML = '';
+
+      for (var i = 0; i < coordinates.length; i++) {
+        var coords = coordinates[i].match(/N(\d+\.\d+) E(\d+\.\d+) N(\d+\.\d+) E(\d+\.\d+)/);
+        var description = coordinates[i].replace(/N\d+\.\d+ E\d+\.\d+ N\d+\.\d+ E\d+\.\d+/, '').trim();
+
+        var row = body.insertRow(i);
+        for (var j = 0; j < 4; j++) {
+          var cell = row.insertCell(j);
+          cell.innerHTML = coords[j + 1];
+        }
+        var cell = row.insertCell(4);
+        cell.innerHTML = description;
+      }
+    }
+
+    function copyToClipboard() {
+      var resultElement = document.getElementById('result');
+      var coordinates = resultElement.innerText;
+
+      if (coordinates) {
+        navigator.clipboard.writeText(coordinates)
+          .then(function() {
+            alert('Coordinates copied to clipboard!');
+          })
+          .catch(function(err) {
+            console.error('Unable to copy coordinates to clipboard', err);
+          });
+      } else {
+        alert('No coordinates to copy!');
+      }
+    }
+
+    function convertKMLtoYourFormat(kmlCoordinates) {
+      var coordinatesArray = kmlCoordinates.split(',');
+      var latitude = convertToYourFormat(coordinatesArray[1], 'latitude');
+      var longitude = convertToYourFormat(coordinatesArray[0], 'longitude');
+      return { latitude: latitude, longitude: longitude };
+    }
+
+    function convertToYourFormat(coordinate, type) {
+      var absoluteCoordinate = Math.abs(coordinate);
+      var degrees = Math.floor(absoluteCoordinate);
+      var minutesFloat = (absoluteCoordinate - degrees) * 60;
+      var minutes = Math.floor(minutesFloat);
+      var seconds = (minutesFloat - minutes) * 60;
+      return type === 'latitude' ? padWithZeros(degrees, 2) + "." + padWithZeros(minutes, 2) + "." + padWithZeros(seconds.toFixed(3), 6) :
+                                   padWithZeros(degrees, 3) + "." + padWithZeros(minutes, 2) + "." + padWithZeros(seconds.toFixed(3), 6);
+    }
+
+    function padWithZeros(value, length) {
+      var result = value.toString();
+      while (result.length < length) {
+        result = '0' + result;
+      }
+      return result;
+    }
+  </script>
+</body>
+</html>
